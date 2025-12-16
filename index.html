@@ -31,7 +31,7 @@
                 <span>HP: <span id="hp-display" class="hp-val">100</span></span>
             </div>
             
-            <div id="story-area">ここに物語が表示されます...</div>
+            <div id="story-area">ここに物語が表示</div>
             
             <div id="choices-area">
                 </div>
@@ -74,7 +74,7 @@
         // AIに物語を生成させる関数
         async function generateEvent() { //fetchではなくasnync/awaitの方が現代的
             // UIをロード中にする
-            storyArea.innerHTML = '<span class="loading">物語を生成中...（この先の石碑を解読しています）</span>';
+            storyArea.innerHTML = '<span class="loading">物語を生成中...（この先の石碑を解読中）</span>';
             choicesArea.innerHTML = "";
 
             // プロンプト（AIへの命令書）
@@ -128,8 +128,8 @@
 
             } catch (error) {
                 console.error(error);
-                storyArea.innerText = "エラーが発生しました: " + error.message;
-                // キー間違いなどで再開できるようにリロードボタンなどを出すと親切
+                storyArea.innerText = "エラーが発生 " + error.message;
+                //ネクストどうすべきか提示できていない
             }
         }
 
