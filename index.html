@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI冒険ダンジョン - 読解力クエスト</title>
+    <link rel="stylesheet" href="stlye.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="setup-screen">
+            <h1>🛡️ AI冒険ダンジョン 🛡️</h1>
+            <p>冒険を始めよう</p>
+            <br>
+            <label>学年設定: 
+                <select id="grade-select" style="padding:5px; background:#333; color:white;">
+                    <option value="小学1年生">小学1年生</option>
+                    <option value="小学2年生" selected>小学2年生</option>
+                    <option value="小学3年生">小学3年生</option>
+                    <option value="高学年">高学年</option>
+                </select>
+            </label>
+            <br><br>
+            <button onclick="startGame()">冒険に出発する！</button>
+        </div>
+
+        <div id="game-screen" style="display:none;">
+            <div class="status-bar">
+                <span>Lv. <span id="level-display">1</span></span>
+                <span>HP: <span id="hp-display" class="hp-val">100</span></span>
+            </div>
+            
+            <div id="story-area">ここに物語が表示されます...</div>
+            
+            <div id="choices-area">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // ゲームの状態管理
+        let apiKey = "";
+        let gameState = {
+            grade: "小学3年生",
+            hp: 100,
+            level: 1,
+            currentAnswer: "" // 正解を一時保存
+        };
+
+        // 要素の取得
+        const storyArea = document.getElementById("story-area");
+        const choicesArea = document.getElementById("choices-area");
+        const hpDisplay = document.getElementById("hp-display");
+        const levelDisplay = document.getElementById("level-display");
+
+        // ゲーム開始処理
+        function startGame() {
+            const inputKey = "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"
+            apiKey = inputKey;
+            gameState.grade = document.getElementById("grade-select").value;
+
+            // 画面切り替え
+            const setupScreen = document.getElementById("setup-screen");
+            const gameScreen = document.getElementById("game-screen");
+
+            setupScreen.style.display = "none";
+            gameScreen.style.display = "block";
+
+            // 最初のイベント生成
+            generateEvent();
+        }
+
+        // AIに物語を生成させる関数
+        async function generateEvent() { //fetchではなくasnync/awaitの方が現代的
+            // UIをロード中にする
+            storyArea.innerHTML = '<span class="loading">物語を生成中...（この先の石碑を解読しています）</span>';
+            choicesArea.innerHTML = "";
+
+            // プロンプト（AIへの命令書）
+            const systemPrompt = `
+                あなたは子供向けのRPGゲームマスターです。
+                ターゲットは「${gameState.grade}」の子供です。
+                以下のJSONフォーマットのみで返答してください。余計な会話は不要です。
+                
+                {
+                    "story": "200文字程度のストーリー。ダンジョンの描写やモンスターの出現。
+                    必ず最後に『謎』や『クイズ』の状況を含めること。子供がワクワクするような問題を作ってください。
+                    国語の文章題の問題のように、よく読まないと理解できないような問題にしてください。少し難しい感じにはふりがなを括弧書きでつけて下さい。",
+                    "question": "ストーリーの内容に関するクイズの問題文。",
+                    "options": ["選択肢1", "選択肢2", "選択肢3"],
+                    "correct_option": "正解の選択肢（文字列）",
+                    "explanation": "正解の解説と、褒める言葉。"
+                }
+                
+                クイズのルール:
+                - 文脈理解を問う問題を作成してください。
+                - 難易度は${gameState.grade}に合わせてください。
+            `;
+
+            try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini", // コスト効率の良いモデル
+                        response_format: { type: "json_object" }, // JSONモード
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: `現在のレベル: ${gameState.level}。新しい部屋に入りました。謎を出してください。` }
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+                
+                // エラーチェック
+                if (data.error) throw new Error(data.error.message);
+
+                // AIの返答(JSON)をパース
+                const content = JSON.parse(data.choices[0].message.content);
+                
+                // 画面に反映
+                renderGame(content);
+
+            } catch (error) {
+                console.error(error);
+                storyArea.innerText = "エラーが発生しました: " + error.message;
+                // キー間違いなどで再開できるようにリロードボタンなどを出すと親切
+            }
+        }
+
+        // 画面描画関数
+        function renderGame(content) {
+            // ストーリー
+            storyArea.innerText = content.story + "\n\n【問題】" + content.question;
+
+            // 正解を保存
+            gameState.currentAnswer = content.correct_option;
+
+            // 選択肢ボタン生成
+            content.options.forEach(option => {
+                const btn = document.createElement("button");
+                btn.innerText = option;
+                btn.onclick = () => checkAnswer(option, content);
+                choicesArea.appendChild(btn);
+            });
+        }
+
+        // 答え合わせ関数
+        function checkAnswer(selected, content) {
+            // ボタンを無効化（連打防止）
+            const buttons = choicesArea.querySelectorAll("button");
+            buttons.forEach(b => b.disabled = true);
+
+            if (selected === content.correct_option) {
+                // 正解！
+                storyArea.innerText += `\n\n✅ 正解！\n${content.explanation}`;
+                gameState.level++;
+                gameState.hp = Math.min(gameState.hp + 10, 100); // HP回復
+                levelDisplay.innerText = gameState.level;
+                hpDisplay.innerText = gameState.hp;
+                
+                // 次へボタン
+                const nextBtn = document.createElement("button");
+                nextBtn.innerText = "次の部屋へ進む ➡";
+                nextBtn.style.marginTop = "20px";
+                nextBtn.style.borderColor = "#4CAF50";
+                nextBtn.onclick = generateEvent;
+                choicesArea.appendChild(nextBtn);
+
+            } else {
+                // 不正解...
+                gameState.hp -= 20;
+                hpDisplay.innerText = gameState.hp;
+                storyArea.innerText += `\n\n❌ 間違い...\nダメージを受けた！残りHP: ${gameState.hp}`;
+
+                if (gameState.hp <= 0) {
+                    alert("ゲームオーバー... ここまでの冒険だったようだ。");
+                    location.reload(); // 最初に戻る
+                } else {
+                    // 再挑戦ボタンではなく、次へ進ませる（または再挑戦させる）
+                    const retryBtn = document.createElement("button");
+                    retryBtn.innerText = "なんとか逃げて次へ進む... ➡";
+                    retryBtn.onclick = generateEvent;
+                    choicesArea.appendChild(retryBtn);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
