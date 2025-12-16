@@ -6,6 +6,7 @@ OPENAI のAPIコードを接続して、
 小学生が楽しんで読解力を向上できるサービス
 
 ## ③アプリのデプロイURL デプロイしている場合はURLを記入（任意） 
+https://toshiki1103.github.io/kokugo2/
 
 ## ④アプリのログイン用IDまたはPassword（ある場合） 
 なし
